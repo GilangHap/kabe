@@ -4,7 +4,7 @@ import numpy as np
 # Parameter
 NUM_CATEGORIES = 4  # Misalnya, kebutuhan pokok, tabungan, hiburan, dan investasi
 POP_SIZE = 20       # Ukuran populasi
-GENERATIONS = 50    # Jumlah generasi
+GENERATIONS = 1000    # Jumlah generasi
 MUTATION_RATE = 0.01  # Tingkat mutasi
 
 # Meminta input rata-rata pemasukan dari user
@@ -26,11 +26,16 @@ def fitness(expenses):
     total_expenses = np.sum(expenses)
     if total_expenses > average_income:
         return 0  # Penalti jika melebihi pemasukan
-    return total_expenses / average_income
+    
+    # Mengukur kesesuaian proporsi tiap kategori dengan bobot prioritas
+    proportion_fit = 1 - np.sum(np.abs((expenses / total_expenses) - priority_weights))
+    
+    # Kombinasi antara total pengeluaran dan kesesuaian proporsi
+    return proportion_fit * (total_expenses / average_income)
 
 # Inisialisasi populasi
 def initialize_population():
-    return [priority_weights * average_income * np.random.rand(NUM_CATEGORIES) for _ in range(POP_SIZE)]
+    return [priority_weights * average_income * (0.8 + 0.4 * np.random.rand(NUM_CATEGORIES)) for _ in range(POP_SIZE)]
 
 # Seleksi individu terbaik
 def select(population):
@@ -41,7 +46,8 @@ def select(population):
 def crossover(parent1, parent2):
     point = random.randint(1, NUM_CATEGORIES - 1)
     child = np.concatenate((parent1[:point], parent2[point:]))
-    return (child / np.sum(child)) * average_income  # Normalisasi ke rata-rata pemasukan
+    child = np.clip(child, 0, average_income)  # Membatasi nilai maksimal ke average_income
+    return (child / np.sum(child)) * average_income  # Normalisasi agar total mendekati average_income
 
 # Mutasi
 def mutate(individual):
@@ -49,7 +55,7 @@ def mutate(individual):
         idx = random.randint(0, NUM_CATEGORIES - 1)
         individual[idx] += np.random.uniform(-0.05, 0.05) * average_income
         individual = np.abs(individual)  # Pastikan nilai positif
-        individual = (individual / np.sum(individual)) * average_income  # Normalisasi
+        individual = (individual / np.sum(individual)) * average_income  # Normalisasi agar total mendekati average_income
     return individual
 
 # Algoritma Genetik
@@ -62,6 +68,10 @@ for gen in range(GENERATIONS):
         new_population.extend([mutate(child1), mutate(child2)])
     population = new_population
     best_solution = select(population)
+    
+    # Normalisasi hasil terbaik agar mendekati pemasukan rata-rata
+    best_solution = (best_solution / np.sum(best_solution)) * average_income
+    
     print(f"Generation {gen + 1}, Best Fitness: {fitness(best_solution)}")
 
 # Hasil akhir
